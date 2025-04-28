@@ -1,0 +1,37 @@
+name: Build and Publish Docker
+
+on:
+  push:
+    branches:
+      - "main"
+
+jobs:
+  build-and-publish:
+    runs-on: ubuntu-latest
+    steps:
+      # 1. ソースコードをチェックアウト
+      - name: Check out repository
+        uses: actions/checkout@v2
+
+      # 2. Docker イメージをビルド
+      - name: Build Docker image
+        run: |
+          docker build -t ${{ secrets.DOCKERHUB_USERNAME }}/myapp:latest .
+
+      # 3. Docker Hub にログイン
+      - name: Log in to Docker Hub
+        run: |
+          echo "${{ secrets.DOCKERHUB_TOKEN }}" | docker login \
+            --username "${{ secrets.DOCKERHUB_USERNAME }}" \
+            --password-stdin
+
+      # 4. ビルドしたイメージを Docker Hub にプッシュ
+      - name: Publish Docker image
+        run: |
+          docker push ${{ secrets.DOCKERHUB_USERNAME }}/myapp:latest
+
+      # 5. 発行したイメージを Pull & 実行（テスト）
+      - name: Pull and run Docker image (test)
+        run: |
+          docker pull ${{ secrets.DOCKERHUB_USERNAME }}/myapp:latest
+          docker run --rm ${{ secrets.DOCKERHUB_USERNAME }}/myapp:latest
