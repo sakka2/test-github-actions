@@ -1,4 +1,4 @@
-FROM ubuntu:stable AS snyk-install
+FROM ubuntu:25.04 AS snyk-install
 
 RUN curl -sSL -o /usr/local/bin/snyk https://downloads.snyk.io/cli/stable/snyk-linux \
     && chmod 755 /usr/local/bin/snyk
