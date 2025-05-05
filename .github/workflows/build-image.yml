@@ -9,12 +9,8 @@ env:
   REPO_NAME: saka2tetsu
   IMAGE_NAME: intermediary-test
   TAGS: |
-    type=edge
-    type=ref,event=pr
-    type=ref,event=branch
-    type=semver,pattern={{version}}
-    type=semver,pattern={{major}}.{{minor}}
-    type=semver,pattern={{major}}
+    type=raw,value=latest
+    type=sha,prefix=,suffix=,format=short
 
 jobs:
   build-and-publish:
@@ -56,11 +52,9 @@ jobs:
           context: .
           push: true
           platforms: ${{ matrix.platform }}
-          provenance: false
+          #provenance: false
+          tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-          outputs: type=image,name=${{ env.REPO_NAME }}/${{ env.IMAGE_NAME }},push-by-digest=true,name-canonical=true,push=true
       - name: Export digest
         run: |
           mkdir -p /tmp/digests
