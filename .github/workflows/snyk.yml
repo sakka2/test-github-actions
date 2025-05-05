@@ -13,7 +13,7 @@ permissions:
 
 jobs:
   snyk:
-    needs: check-targets
+    #needs: check-targets
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false 
