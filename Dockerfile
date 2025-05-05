@@ -1,14 +1,10 @@
-FROM rockylinux:9.3 AS snyk-install
+FROM python:3.8-slim-buster
 
-RUN curl -sSL -o /usr/local/bin/snyk https://downloads.snyk.io/cli/stable/snyk-linux \
-    && chmod 755 /usr/local/bin/snyk
+WORKDIR /app
 
-FROM screwdrivercd/launcher:v6.0.221
+COPY requirements.txt requirements.txt
+RUN pip3 install -r requirements.txt
 
-COPY --from=snyk-install /usr/local/bin/snyk /opt/sd/snyk/bin/snyk
+COPY . .
 
-RUN /hab/bin/hab pkg binlink core/curl \
-    && /hab/bin/hab pkg binlink core/unzip \
-    && apk --update add tar \
-    && echo "- /opt/sd/snyk:" \
-    && ls -la /opt/sd/snyk
+CMD [ "python3", "-m" , "flask", "run", "--host=0.0.0.0"]
