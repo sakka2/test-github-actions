@@ -19,7 +19,7 @@ permissions:
 
 env:
   REPO_NAME: saka2tetsu
-  IMAGE_NAME: myapp
+  IMAGE_NAME: intermedairy-image
   TAGS: |
     type=raw,value=latest
     type=sha,prefix=,suffix=,format=short
