@@ -18,13 +18,8 @@ permissions:
   id-token: write
 
 env:
-  REPO_NAME: screwdriver-cd
-  IMAGE_NAME: intermediary
-  ARTIFACT_NAME: screwdriver-cd/intermediary
-  ARTIFACT_VERSION: latest
-  ARTIFACT_STORE: cd.dockerregistry
-  PATTERN: "2"
-  SD_TOKEN_DOMAINS: shellkey.sm.production
+  REPO_NAME: sakka2
+  IMAGE_NAME: intermediary-test
 
 jobs:
   test:

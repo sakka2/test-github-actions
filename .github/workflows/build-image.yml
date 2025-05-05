@@ -5,33 +5,71 @@ on:
     branches:
       - "main"
 
+env:
+  REPO_NAME: sakka2
+  IMAGE_NAME: intermediary-test
+  TAGS: |
+    type=edge
+    type=ref,event=pr
+    type=ref,event=branch
+    type=semver,pattern={{version}}
+    type=semver,pattern={{major}}.{{minor}}
+    type=semver,pattern={{major}}
+
 jobs:
   build-and-publish:
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        platform:
+          - linux/amd64
+          - linux/arm64
     steps:
+      - name: Prepare
+        run: |
+          platform=${{ matrix.platform }}
+          echo "PLATFORM_PAIR=${platform//\//-}" >> $GITHUB_ENV
+
       # 1. ソースコードをチェックアウト
-      - name: Check out repository
-        uses: actions/checkout@v2
-
-      # 2. Docker イメージをビルド
-      - name: Build Docker image
-        run: |
-          docker build -t ${{ secrets.DOCKERHUB_USERNAME }}/myapp:latest .
-
-      # 3. Docker Hub にログイン
+      - name: Check out the repo
+        uses: actions/checkout@v4.2.2
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      - name: Docker meta
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REPO_NAME }}/${{ env.IMAGE_NAME }}
+          tags: ${{ env.TAGS }}
       - name: Log in to Docker Hub
-        run: |
-          echo "${{ secrets.DOCKERHUB_TOKEN }}" | docker login \
-            --username "${{ secrets.DOCKERHUB_USERNAME }}" \
-            --password-stdin
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+      # 2. Docker イメージをビルド
+      - name: Build and Push to Docker Hub
+        id: build
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          platforms: ${{ matrix.platform }}
+          provenance: false
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          outputs: type=image,name=${{ env.REPO_NAME }}/${{ env.IMAGE_NAME }},push-by-digest=true,name-canonical=true,push=true
 
-      # 4. ビルドしたイメージを Docker Hub にプッシュ
-      - name: Publish Docker image
+      - name: Export digest
         run: |
-          docker push ${{ secrets.DOCKERHUB_USERNAME }}/myapp:latest
-
-      # 5. 発行したイメージを Pull & 実行（テスト）
-      - name: Pull and run Docker image (test)
-        run: |
-          docker pull ${{ secrets.DOCKERHUB_USERNAME }}/myapp:latest
-          docker run --rm ${{ secrets.DOCKERHUB_USERNAME }}/myapp:latest
+          mkdir -p /tmp/digests
+          digest="${{ steps.build.outputs.digest }}"
+          touch "/tmp/digests/${digest#sha256:}"
+      - name: Upload digest
+        uses: actions/upload-artifact@v4
+        with:
+          name: digests-${{ env.PLATFORM_PAIR }}
+          path: /tmp/digests/*
+          if-no-files-found: error
+          retention-days: 1
