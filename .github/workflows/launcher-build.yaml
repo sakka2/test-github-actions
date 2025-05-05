@@ -1,0 +1,146 @@
+name: Launcher Build
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+# グローバル環境変数（必要に応じて設定）
+env:
+  REPO_NAME: saka2tetsu
+  IMAGE_NAME: launcher
+  CACHE_ENABLED: "false"
+  TAG_NAME: latest
+
+jobs:
+  snyk:
+    runs-on: ubuntu-latest
+    container:
+      image: go/golang-ci-container:1.17
+    # Screwdriver の environment 相当
+    env:
+      SD_SNYK_ORG_SLUG: env1
+      SD_SNYK_ALL_PROJECTS: env2
+    steps:
+      - name: Check out
+        uses: actions/checkout@v2
+
+      - name: Execute Snyk scan
+        run: echo "Execute snyk scan."
+
+  #
+  # shellcheck ジョブ
+  # Screwdriver の「requires: [ ~pr ]」に相当し、pull_request 時のみ実行
+  #
+  shellcheck:
+    runs-on: ubuntu-latest
+    if: ${{ github.event_name == 'pull_request' }}
+    container:
+      image: cd.docker-registry.test.co.jp:4443/node/node-build:22
+    steps:
+      - name: Check out
+        uses: actions/checkout@v2
+
+      - name: Run shellcheck
+        run: sd-cmd exec common/shellcheck@stable scripts/*.sh || true
+
+  #
+  # build ジョブ
+  # Screwdriver の「requires: [ ~pr ]」に相当し、pull_request 時のみ実行
+  # テンプレート docker/build@stable 相当の処理を steps で定義（例）
+  #
+  build:
+    runs-on: ubuntu-latest
+    if: ${{ github.event_name == 'pull_request' }}
+    steps:
+      - name: Check out
+        uses: actions/checkout@v2
+
+      - name: Prepare build environment
+        run: |
+          # postdetermine_tag相当（例）
+          echo "DATE=$(date -u +'%Y%m%d-%H%M%S')" >> $GITHUB_ENV
+
+          # prebuild_image 相当の処理（必要に応じて）
+          echo "Preparing build..."
+
+      - name: Docker build
+        run: |
+          if [ "${CACHE_ENABLED}" = "true" ]; then
+            echo "Using cache to build image..."
+          else
+            echo "Build image without cache..."
+          fi
+          # 実際のビルド例
+          docker build \
+            --tag $DOCKER_REG/$REPO_NAME/$IMAGE_NAME:$TAG_NAME \
+            .
+
+  #
+  # publish ジョブ
+  # Screwdriver の「requires: [ ~snyk, ~sd@4:upload_config ]」に相当
+  # → GitHub Actions では、snyk と build (例として) が成功した後に実行
+  #
+  publish:
+    runs-on: ubuntu-latest
+    needs: 
+      - snyk
+      - build
+    env:
+      TAG_NAME: stable  # Screwdriver の environment から
+    steps:
+      - name: Check out
+        uses: actions/checkout@v2
+
+      - name: Docker push
+        run: |
+          echo "Publishing image with tag $TAG_NAME"
+          # 実際のpush例
+          docker push $DOCKER_REG/$REPO_NAME/$IMAGE_NAME:$TAG_NAME
+
+      - name: Verify & Post-verify
+        run: |
+          # verify 相当
+          TARGET="$DOCKER_REG/$REPO_NAME/$IMAGE_NAME:$TAG_NAME"
+          echo "Verifying $TARGET..."
+
+          # postverify 相当
+          docker run --name launcher --entrypoint true "$TARGET"
+
+  #
+  # snyk-update ジョブ
+  # Screwdriver の「requires: [ ~sd@2:trigger ]」に相当（トリガー条件次第で設定）
+  # ここでは例として手動ワークフローディスパッチや別のブランチ push 時などに実行される
+  #
+  snyk-update:
+    runs-on: ubuntu-latest
+    container:
+      image: cd.docker-registry.test.co.jp:4443/go/golang-ci-container:1.17
+    env:
+      SD_SNYK_ORG_SLUG: env1
+      SD_SNYK_ALL_PROJECTS: env2
+    steps:
+      - name: Check out
+        uses: actions/checkout@v2
+      - name: Execute Snyk scan (update)
+        run: echo "Execute snyk scan for update."
+
+  #
+  # snyk-update-publish ジョブ
+  # Screwdriver の「requires: [ snyk-update ]」に相当
+  #
+  snyk-update-publish:
+    runs-on: ubuntu-latest
+    needs: [snyk-update]
+    env:
+      TAG_NAME: stable
+    steps:
+      - name: Check out
+        uses: actions/checkout@v2
+
+      - name: Docker push
+        run: |
+          echo "Publishing (snyk-update) image with tag $TAG_NAME"
+          # 実際のpush例
+          docker push $DOCKER_REG/$REPO_NAME/$IMAGE_NAME:$TAG_NAME
