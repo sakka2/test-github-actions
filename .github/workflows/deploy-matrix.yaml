@@ -155,16 +155,11 @@ jobs:
           echo "test nToken"
 
   before_deploy:
+    if: ${{ github.event_name == 'workflow_dispatch' }}
     runs-on: ubuntu-latest
     steps:
       - name: Root of the job that deploys production
-        run: echo "before_deploy job"
-
-  before_deploy_secrets:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Root of the job that deploys secrets for production
-        run: echo 'before deploys secrets resource.'
+        run: echo "before deploy job"
 
   prod-deploy-secrets:
     if: ${{ github.event_name == 'push' }}
