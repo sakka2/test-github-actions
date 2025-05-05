@@ -72,4 +72,5 @@ jobs:
       if: ${{ steps.snyk-test.outcome == 'failure' || steps.snyk-code.outcome == 'failure' }}
       run: |
         echo "Snyk test or Snyk code test failed."
+        echo "test."
         exit 1
