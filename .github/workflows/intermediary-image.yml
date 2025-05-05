@@ -1,0 +1,173 @@
+name: Intermediary Image
+# ワークフロー実行名
+run-name: Build Intermediary Image ${{ github.ref }}
+
+on:
+  pull_request:
+    branches:
+      - main
+    types: [opened, synchronize]
+  push:
+    branches:
+      - main
+  schedule:
+    - cron: "* 2 * * *"
+
+permissions:
+  contents: read
+  id-token: write
+
+env:
+  REPO_NAME: saka2tetsu
+  IMAGE_NAME: myapp
+  TAGS: |
+    type=raw,value=latest
+    type=sha,prefix=,suffix=,format=short
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    container:
+      image: python:3.10.17
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+
+      - name: Run tests
+        run: pytest
+
+  snyk:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false 
+      matrix:
+        dir: [src,tests]
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v3
+
+    - name: Snyk setup
+      id: snyk
+      uses: snyk/actions/setup@master
+      with:
+        snyk-version: v1.1196.0
+
+    - name: Snyk version
+      run: snyk --version
+
+    - name: Snyk code test
+      id: snyk-code
+      continue-on-error: true
+      run: snyk code test ${APP_PATH} ${ARGS}
+      env:
+        SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        ARGS: --severity-threshold=high
+        APP_PATH: ${{ matrix.dir }}
+
+    - name: Error Handler
+      if: ${{ steps.snyk-code.outcome == 'failure' }}
+      run: |
+        echo "Snyk test or Snyk code test failed."
+        exit 1
+
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        platform:
+          - linux/amd64
+          - linux/arm64
+    steps:
+      - name: Prepare
+        run: |
+          platform=${{ matrix.platform }}
+          echo "PLATFORM_PAIR=${platform//\//-}" >> $GITHUB_ENV
+      - name: Check out the repo
+        uses: actions/checkout@v4.2.2
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      - name: Docker meta
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REPO_NAME }}/${{ env.IMAGE_NAME }}
+          tags: ${{ env.TAGS }}
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+      - name: Build and Push to Docker Hub
+        id: build
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: false
+          platforms: ${{ matrix.platform }}
+          #provenance: false
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+
+  publish:
+    runs-on: ubuntu-latest
+    needs: 
+      - test
+      - snyk
+      - build
+    strategy:
+      fail-fast: false
+      matrix:
+        platform:
+          - linux/amd64
+          - linux/arm64
+    steps:
+      - name: Prepare
+        run: |
+          platform=${{ matrix.platform }}
+          echo "PLATFORM_PAIR=${platform//\//-}" >> $GITHUB_ENV
+      - name: Check out the repo
+        uses: actions/checkout@v4.2.2
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      - name: Docker meta
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REPO_NAME }}/${{ env.IMAGE_NAME }}
+          tags: ${{ env.TAGS }}
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+      - name: Build and Push to Docker Hub
+        id: build
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          platforms: ${{ matrix.platform }}
+          #provenance: false
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+      - name: Export digest
+        run: |
+          mkdir -p /tmp/digests
+          digest="${{ steps.build.outputs.digest }}"
+          touch "/tmp/digests/${digest#sha256:}"
+      - name: Upload digest
+        uses: actions/upload-artifact@v4
+        with:
+          name: digests-${{ env.PLATFORM_PAIR }}
+          path: /tmp/digests/*
+          if-no-files-found: error
+          retention-days: 1

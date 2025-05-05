@@ -7,7 +7,7 @@ on:
 
 env:
   REPO_NAME: saka2tetsu
-  IMAGE_NAME: intermediary-test
+  IMAGE_NAME: myapp
   TAGS: |
     type=raw,value=latest
     type=sha,prefix=,suffix=,format=short
