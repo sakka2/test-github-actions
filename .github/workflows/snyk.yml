@@ -6,6 +6,11 @@ on:
     branches:
       - main
     types: [opened, synchronize]
+  push:
+    branches:
+      - main
+  schedule:
+    - cron: "* 2 * * *"
 
 permissions:
   contents: read
@@ -13,7 +18,6 @@ permissions:
 
 jobs:
   snyk:
-    #needs: check-targets
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false 
