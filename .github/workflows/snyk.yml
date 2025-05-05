@@ -1,0 +1,75 @@
+name: snyk
+run-name: snyk ${{ github.head_ref }}
+
+on:
+  pull_request:
+    branches:
+      - main
+    types: [opened, synchronize]
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  snyk:
+    needs: check-targets
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false 
+      matrix:
+        dir: [src,test]
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v3
+
+    - name: Snyk setup
+      id: snyk
+      uses: snyk/actions/setup@master
+      with:
+        snyk-version: v1.1196.0
+
+    - name: Snyk version
+      run: snyk --version
+
+    - name: Check package.json is exists
+      id: check-package
+      continue-on-error: true
+      run: ls -al ${{ matrix.dir }}/package.json
+
+    - uses: actions/setup-node@v3
+      if: steps.check-package.outcome == 'success'
+      id: cache
+      with:
+        node-version: 14
+        cache: npm
+        cache-dependency-path: ${{ matrix.dir }}
+
+    - name: npm install
+      if: steps.cache.outputs.cache-hit != 'true' && steps.check-package.outcome == 'success'
+      run: npm install
+      working-directory: ${{ matrix.dir }}
+
+    - name: Snyk Test
+      id: snyk-test
+      continue-on-error: true
+      run: snyk test ${APP_PATH} ${ARGS}
+      env:
+        SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        ARGS: '--all-projects --severity-threshold=high'
+        APP_PATH: ${{ matrix.dir }}
+
+    - name: Snyk code test
+      id: snyk-code
+      continue-on-error: true
+      run: snyk code test ${APP_PATH} ${ARGS}
+      env:
+        SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        ARGS: --severity-threshold=high
+        APP_PATH: ${{ matrix.dir }}
+
+    - name: Error Handler
+      if: ${{ steps.snyk-test.outcome == 'failure' || steps.snyk-code.outcome == 'failure' }}
+      run: |
+        echo "Snyk test or Snyk code test failed."
+        exit 1
