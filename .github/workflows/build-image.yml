@@ -6,7 +6,7 @@ on:
       - "main"
 
 env:
-  REPO_NAME: sakka2
+  REPO_NAME: saka2tetsu
   IMAGE_NAME: intermediary-test
   TAGS: |
     type=edge
