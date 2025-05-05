@@ -6,6 +6,11 @@ on:
     branches:
       - main
     types: [opened, synchronize]
+  push:
+    branches:
+      - main
+  schedule:
+    - cron: "* 2 * * *"
 
 permissions:
   contents: read
@@ -13,12 +18,11 @@ permissions:
 
 jobs:
   snyk:
-    needs: check-targets
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false 
       matrix:
-        dir: [src,test]
+        dir: [src,tests]
     steps:
     - name: Checkout
       uses: actions/checkout@v3
@@ -31,33 +35,6 @@ jobs:
 
     - name: Snyk version
       run: snyk --version
-
-    - name: Check package.json is exists
-      id: check-package
-      continue-on-error: true
-      run: ls -al ${{ matrix.dir }}/package.json
-
-    - uses: actions/setup-node@v3
-      if: steps.check-package.outcome == 'success'
-      id: cache
-      with:
-        node-version: 14
-        cache: npm
-        cache-dependency-path: ${{ matrix.dir }}
-
-    - name: npm install
-      if: steps.cache.outputs.cache-hit != 'true' && steps.check-package.outcome == 'success'
-      run: npm install
-      working-directory: ${{ matrix.dir }}
-
-    - name: Snyk Test
-      id: snyk-test
-      continue-on-error: true
-      run: snyk test ${APP_PATH} ${ARGS}
-      env:
-        SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
-        ARGS: '--all-projects --severity-threshold=high'
-        APP_PATH: ${{ matrix.dir }}
 
     - name: Snyk code test
       id: snyk-code
