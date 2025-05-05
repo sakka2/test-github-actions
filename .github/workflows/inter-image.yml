@@ -1,0 +1,82 @@
+name: Intermediary Image
+# ワークフロー実行名
+run-name: Build Intermediary Image ${{ github.ref }}
+
+on:
+  pull_request:
+    branches:
+      - main
+    types: [opened, synchronize]
+  push:
+    branches:
+      - main
+  schedule:
+    - cron: "* 2 * * *"
+
+permissions:
+  contents: read
+  id-token: write
+
+env:
+  REPO_NAME: screwdriver-cd
+  IMAGE_NAME: intermediary
+  ARTIFACT_NAME: screwdriver-cd/intermediary
+  ARTIFACT_VERSION: latest
+  ARTIFACT_STORE: cd.dockerregistry
+  PATTERN: "2"
+  SD_TOKEN_DOMAINS: shellkey.sm.production
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    container:
+      image: python:3.10.17
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'  
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+
+      - name: Run tests
+        run: pytest
+
+  snyk:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false 
+      matrix:
+        dir: [src,tests]
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v3
+
+    - name: Snyk setup
+      id: snyk
+      uses: snyk/actions/setup@master
+      with:
+        snyk-version: v1.1196.0
+
+    - name: Snyk version
+      run: snyk --version
+
+    - name: Snyk code test
+      id: snyk-code
+      continue-on-error: true
+      run: snyk code test ${APP_PATH} ${ARGS}
+      env:
+        SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        ARGS: --severity-threshold=high
+        APP_PATH: ${{ matrix.dir }}
+
+    - name: Error Handler
+      if: ${{ steps.snyk-code.outcome == 'failure' }}
+      run: |
+        echo "Snyk test or Snyk code test failed."
+        exit 1
