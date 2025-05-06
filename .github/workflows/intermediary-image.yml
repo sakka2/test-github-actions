@@ -81,7 +81,7 @@ jobs:
   notification-slack:
     needs: snyk
     if: always()
-    uses: ${org}/${repo}/.github/workflows/slack_notify.yml@${branch_name}
+    uses: sakka2/test-github-actions/.github/workflows/slack_notify.yml@main
     secrets: inherit
     with:
       exitCode: ${{ needs.setup.outputs.exitCode }}
