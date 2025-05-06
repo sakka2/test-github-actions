@@ -50,16 +50,13 @@ jobs:
     steps:
     - name: Checkout
       uses: actions/checkout@v3
-
     - name: Snyk setup
       id: snyk
       uses: snyk/actions/setup@master
       with:
         snyk-version: v1.1196.0
-
     - name: Snyk version
       run: snyk --version
-
     - name: Snyk code test
       id: snyk-code
       continue-on-error: true
@@ -68,7 +65,6 @@ jobs:
         SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
         ARGS: --severity-threshold=high
         APP_PATH: ${{ matrix.dir }}
-
     - name: Error Handler
       id: saveExitCode
       if: ${{ steps.snyk-code.outcome == 'failure' }}
