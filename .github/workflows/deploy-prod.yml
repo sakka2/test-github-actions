@@ -25,7 +25,6 @@ jobs:
 
     env:
       SD_SHELLKEY_MANIFEST_ENABLE: "true"
-
     steps:
       - name: Check out
         uses: actions/checkout@v3
@@ -69,7 +68,6 @@ jobs:
             GPG_PRIVATE_KEY_PATH: /tokens/kubesec_prod.gpg_privatekey
     env:
       SD_SHELLKEY_MANIFEST_ENABLE: "true"
-
     steps:
       - uses: actions/checkout@v3
       - name: Deploy
@@ -104,11 +102,9 @@ jobs:
             K8S_RESOURCES: "deployment/sdintermediary"
     steps:
       - uses: actions/checkout@v3
-
       - name: Deploy
         run: |
           echo "Running deploy for ${{ matrix.name }}"
-
       - name: Slack Notification on Failure
         if: failure()
         uses: 8398a7/action-slack@v3
