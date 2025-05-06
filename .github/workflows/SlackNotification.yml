@@ -1,0 +1,51 @@
+name: Slack Incoming Webhooks
+
+on:
+  workflow_call:
+    inputs:
+      exitCode:
+        required: true
+        type: string
+      slackChannelId:
+        required: true
+        type: string
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    env:
+      SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK
+      SLACK_WEBHOOK_URL: ${{ secrets.SLACK_INCOMING_WEBHOOK_URL }}
+    steps:
+      - name: Notify Slack - Success
+        if: ${{ inputs.exitCode == 'success' }}
+        uses: slackapi/slack-github-action@v1.26.0
+        with:
+          payload: |
+            {
+              "text": "ビルド結果: ${{ job.status }}\n\n${{ github.event.pull_request.html_url || github.event.head_commit.url }}",
+              "blocks": [
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": ":github: ビルド結果: ${{ job.status }}\n\n${{ github.event.pull_request.html_url || github.event.head_commit.url }}"
+                  }
+                },
+                {
+                  "type": "context",
+                  "elements": [
+                    {
+                      "type": "mrkdwn",
+                      "text": "Author: <https://github.com/${{ github.event.sender.login }}|@${{ github.event.sender.login }}>"
+                    }
+                  ]
+                }
+              ]
+            }
+      - name: Notify Slack - Failure
+        if: ${{ inputs.exitCode != 'success' }}
+        uses: slackapi/slack-github-action@v1.26.0
+        with:
+          payload: |
+            # Failure Notification
