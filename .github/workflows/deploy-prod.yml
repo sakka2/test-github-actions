@@ -105,6 +105,7 @@ jobs:
       - name: Deploy
         run: |
           echo "Running deploy for ${{ matrix.name }}"
+          exit 1
       - name: Slack Notification on Failure
         if: failure()
         uses: 8398a7/action-slack@v3
