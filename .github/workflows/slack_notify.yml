@@ -6,9 +6,6 @@ on:
       exitCode:
         required: true
         type: string
-      slackChannelId:
-        required: true
-        type: string
 
 jobs:
   notify:
