@@ -42,6 +42,8 @@ jobs:
 
   snyk:
     runs-on: ubuntu-latest
+    outputs:
+      exitCode: ${{ steps.saveExitCode.outputs.exitCode }}
     strategy:
       fail-fast: false 
       matrix:
@@ -69,10 +71,20 @@ jobs:
         APP_PATH: ${{ matrix.dir }}
 
     - name: Error Handler
+      id: saveExitCode
       if: ${{ steps.snyk-code.outcome == 'failure' }}
       run: |
         echo "Snyk test or Snyk code test failed."
+        echo "exitCode=${{ steps.snyk-code.outcome }}" >> $GITHUB_OUTPUT
         exit 1
+
+  notification-slack:
+    needs: snyk
+    if: always()
+    uses: ${org}/${repo}/.github/workflows/slack_notify.yml@${branch_name}
+    secrets: inherit
+    with:
+      exitCode: ${{ needs.setup.outputs.exitCode }}
 
   build:
     runs-on: ubuntu-latest
