@@ -17,7 +17,6 @@ jobs:
             K8S_NAMESPACE: "screwdriver"
             K8S_DEPLOY_TARGET: "intermediary-deployment/ssk-prod/intermediary.yaml"
             SD_SHELLKEY_MANIFEST_FILE: "ssk-prod/k8s-dryrun-token.yaml"
-
           - name: prod-dryrun-kks
             K8S_API_SERVER: "https://kks-prod.co.jp"
             K8S_NAMESPACE: "screwdriver"
@@ -30,16 +29,13 @@ jobs:
     steps:
       - name: Check out
         uses: actions/checkout@v3
-
       - name: Overwrite for get diff
         run: |
           echo 'Overwrite for get diff.'
           ## ls -1A "${{ matrix.K8S_DEPLOY_TARGET }}" | xargs -I% sh -c "echo '---'; kubectl diff -f % || true"
-          ls -1A "${{ matrix.K8S_DEPLOY_TARGET }}" 
-
+          ## ls -1A "${{ matrix.K8S_DEPLOY_TARGET }}" 
       - name: wait-for-ready
         run: echo 'No need to wait.'
-
       - name: Debug Info
         run: |
           echo "Completed dryrun for ${ { matrix.name }}"
@@ -76,11 +72,9 @@ jobs:
 
     steps:
       - uses: actions/checkout@v3
-
       - name: Deploy
         run: |
           echo "Running deploy secrets for ${{ matrix.name }}"
-
       - name: Slack Notification on Failure
         if: failure()
         uses: 8398a7/action-slack@v3
