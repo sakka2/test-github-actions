@@ -1,4 +1,4 @@
-name: Intermediary deploy with matrix
+name: Intermediary deploy sandbox
 
 on:
   push:
